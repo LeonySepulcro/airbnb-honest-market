@@ -1,0 +1,6 @@
+{
+  "name": "Honest Market",
+  "description": "Mercado autônomo para hóspedes de Airbnb. Compre comidas, bebidas e itens de emergência direto pelo celular.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

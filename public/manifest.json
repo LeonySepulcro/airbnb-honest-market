@@ -1,0 +1,24 @@
+{
+  "short_name": "HonestMarket",
+  "name": "Honest Market - Airbnb",
+  "description": "Mercado de confiança para hóspedes de Airbnb. Compre snacks, bebidas e itens essenciais direto do seu celular.",
+  "icons": [
+    {
+      "src": "icons/icon-512.png",
+      "type": "image/png",
+      "sizes": "192x192",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "icons/icon-512.png",
+      "type": "image/png",
+      "sizes": "512x512",
+      "purpose": "any maskable"
+    }
+  ],
+  "start_url": "/?utm_source=pwa",
+  "background_color": "#ffffff",
+  "theme_color": "#f97316",
+  "display": "standalone",
+  "orientation": "portrait"
+}
