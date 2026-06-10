@@ -34,6 +34,7 @@ export default function AdminApp({ onLogout }: Props) {
   const [sessionItems, setSessionItems] = useState<ApInventoryItem[]>([]);
   const [unknownCode, setUnknownCode]   = useState<string | null>(null);
   const [newName, setNewName]           = useState('');
+  const [newPrice, setNewPrice]         = useState('');
 
   const onAbastecerScan = useCallback((code: string) => {
     const prod = getProductByBarcode(code);
@@ -51,7 +52,12 @@ export default function AdminApp({ onLogout }: Props) {
 
   const registerUnknown = () => {
     if (!unknownCode || !newName.trim()) return;
-    const prod: CatalogProduct = { barcode: unknownCode, name: newName.trim() };
+    const price = parseFloat(newPrice.replace(',', '.'));
+    const prod: CatalogProduct = {
+      barcode: unknownCode,
+      name: newName.trim(),
+      price: isNaN(price) ? undefined : price,
+    };
     upsertCatalogProduct(prod);
     setSessionItems(prev => {
       const hit = prev.find(i => i.barcode === unknownCode);
@@ -61,6 +67,7 @@ export default function AdminApp({ onLogout }: Props) {
     toast(`${prod.name} cadastrado!`);
     setUnknownCode(null);
     setNewName('');
+    setNewPrice('');
   };
 
   const salvarAbastecimento = () => {
@@ -99,6 +106,7 @@ export default function AdminApp({ onLogout }: Props) {
   const [scanning, setScanning]           = useState(false);
   const [cadastroCode, setCadastroCode]   = useState<string | null>(null);
   const [cadastroName, setCadastroName]   = useState('');
+  const [cadastroPrice, setCadastroPrice] = useState('');
 
   useEffect(() => { if (screen === 'cadastro') setCatalog(getCatalog()); }, [screen]);
 
@@ -107,14 +115,21 @@ export default function AdminApp({ onLogout }: Props) {
     const existing = getProductByBarcode(code);
     setCadastroCode(code);
     setCadastroName(existing?.name || '');
+    setCadastroPrice(existing?.price != null ? String(existing.price) : '');
   }, []);
 
   const saveCadastro = () => {
     if (!cadastroCode || !cadastroName.trim()) return;
-    upsertCatalogProduct({ barcode: cadastroCode, name: cadastroName.trim() });
+    const price = parseFloat(cadastroPrice.replace(',', '.'));
+    upsertCatalogProduct({
+      barcode: cadastroCode,
+      name: cadastroName.trim(),
+      price: isNaN(price) ? undefined : price,
+    });
     setCatalog(getCatalog());
     setCadastroCode(null);
     setCadastroName('');
+    setCadastroPrice('');
     toast('Produto salvo!');
   };
 
@@ -330,10 +345,21 @@ export default function AdminApp({ onLogout }: Props) {
                       placeholder="Nome do produto..."
                       value={newName}
                       onChange={e => setNewName(e.target.value)}
-                      onKeyDown={e => e.key === 'Enter' && registerUnknown()}
                       className="w-full border border-slate-200 rounded-xl p-3 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500"
                       autoFocus
                     />
+                    <div className="relative">
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm font-bold text-slate-400">R$</span>
+                      <input
+                        type="text"
+                        inputMode="decimal"
+                        placeholder="0,00"
+                        value={newPrice}
+                        onChange={e => setNewPrice(e.target.value)}
+                        onKeyDown={e => e.key === 'Enter' && registerUnknown()}
+                        className="w-full border border-slate-200 rounded-xl p-3 pl-9 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500"
+                      />
+                    </div>
                     <button
                       onClick={registerUnknown}
                       disabled={!newName.trim()}
@@ -418,6 +444,7 @@ export default function AdminApp({ onLogout }: Props) {
                     </div>
                   ) : (
                     <>
+                      {/* Cabeçalho resumo */}
                       <div className="bg-red-50 border border-red-100 rounded-2xl p-4">
                         <p className="text-[10px] uppercase tracking-wider font-bold text-red-400 mb-1">Consumido pelo hóspede</p>
                         <div className="flex items-end gap-1.5">
@@ -427,19 +454,59 @@ export default function AdminApp({ onLogout }: Props) {
                           <span className="text-sm text-red-400 font-bold pb-0.5">itens faltando</span>
                         </div>
                       </div>
+
+                      {/* Lista de itens consumidos */}
                       <div className="bg-white border border-slate-200 rounded-2xl divide-y divide-slate-100">
-                        {consumed.map(item => (
-                          <div key={item.barcode} className="px-4 py-3 flex items-center justify-between">
-                            <div className="flex items-center gap-2.5">
-                              <XCircle className="w-4 h-4 text-red-400 flex-shrink-0" />
-                              <span className="text-sm font-semibold text-slate-700">{item.name}</span>
+                        {consumed.map(item => {
+                          const qtd   = item.quantity - item.found;
+                          const prod  = getProductByBarcode(item.barcode);
+                          const unit  = prod?.price;
+                          const total = unit != null ? unit * qtd : null;
+                          return (
+                            <div key={item.barcode} className="px-4 py-3 flex items-center justify-between">
+                              <div className="flex items-center gap-2.5 flex-1 mr-2">
+                                <XCircle className="w-4 h-4 text-red-400 flex-shrink-0" />
+                                <div>
+                                  <span className="text-sm font-semibold text-slate-700">{item.name}</span>
+                                  <span className="text-[11px] text-slate-400 block">
+                                    {qtd} unid{unit != null ? ` × R$ ${unit.toFixed(2).replace('.', ',')}` : ''}
+                                  </span>
+                                </div>
+                              </div>
+                              <span className="text-sm font-black text-red-500 text-right">
+                                {total != null
+                                  ? `R$ ${total.toFixed(2).replace('.', ',')}`
+                                  : `${qtd} faltando`}
+                              </span>
                             </div>
-                            <span className="text-sm font-black text-red-500">
-                              {item.quantity - item.found} falta{item.quantity - item.found > 1 ? 'm' : ''}
-                            </span>
-                          </div>
-                        ))}
+                          );
+                        })}
                       </div>
+
+                      {/* Total a receber — só aparece se todos os itens consumidos têm preço */}
+                      {consumed.every(i => getProductByBarcode(i.barcode)?.price != null) && (
+                        <div className="bg-orange-50 border border-orange-200 rounded-2xl p-4 flex items-center justify-between">
+                          <div>
+                            <p className="text-[10px] uppercase tracking-wider font-bold text-orange-400">Total a receber</p>
+                            <p className="text-[11px] text-orange-400 mt-0.5">Verifique o extrato PIX</p>
+                          </div>
+                          <span className="text-2xl font-black text-orange-600">
+                            R$ {consumed
+                              .reduce((a, i) => {
+                                const p = getProductByBarcode(i.barcode)?.price ?? 0;
+                                return a + p * (i.quantity - i.found);
+                              }, 0)
+                              .toFixed(2).replace('.', ',')}
+                          </span>
+                        </div>
+                      )}
+
+                      {/* Aviso se algum item não tem preço cadastrado */}
+                      {consumed.some(i => getProductByBarcode(i.barcode)?.price == null) && (
+                        <p className="text-[11px] text-slate-400 text-center px-4">
+                          ⚠️ Alguns itens sem preço cadastrado — total parcial não exibido.
+                        </p>
+                      )}
                     </>
                   )}
 
@@ -487,10 +554,21 @@ export default function AdminApp({ onLogout }: Props) {
                     placeholder="Nome do produto..."
                     value={cadastroName}
                     onChange={e => setCadastroName(e.target.value)}
-                    onKeyDown={e => e.key === 'Enter' && saveCadastro()}
                     className="w-full border border-slate-200 rounded-xl p-3 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500"
                     autoFocus
                   />
+                  <div className="relative">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm font-bold text-slate-400">R$</span>
+                    <input
+                      type="text"
+                      inputMode="decimal"
+                      placeholder="0,00"
+                      value={cadastroPrice}
+                      onChange={e => setCadastroPrice(e.target.value)}
+                      onKeyDown={e => e.key === 'Enter' && saveCadastro()}
+                      className="w-full border border-slate-200 rounded-xl p-3 pl-9 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500"
+                    />
+                  </div>
                   <button
                     onClick={saveCadastro}
                     disabled={!cadastroName.trim()}
@@ -498,7 +576,7 @@ export default function AdminApp({ onLogout }: Props) {
                   >
                     Salvar Produto
                   </button>
-                  <button onClick={() => setCadastroCode(null)} className="text-slate-400 text-sm text-center cursor-pointer py-1">
+                  <button onClick={() => { setCadastroCode(null); setCadastroPrice(''); }} className="text-slate-400 text-sm text-center cursor-pointer py-1">
                     Cancelar
                   </button>
                 </div>
@@ -524,9 +602,16 @@ export default function AdminApp({ onLogout }: Props) {
                     <div className="bg-white border border-slate-200 rounded-2xl divide-y divide-slate-100">
                       {catalog.map(p => (
                         <div key={p.barcode} className="px-4 py-3 flex items-center justify-between">
-                          <div>
+                          <div className="flex-1 mr-2">
                             <p className="text-sm font-bold text-slate-800">{p.name}</p>
-                            <p className="text-[10px] font-mono text-slate-400 mt-0.5">{p.barcode}</p>
+                            <div className="flex items-center gap-2 mt-0.5">
+                              <p className="text-[10px] font-mono text-slate-400">{p.barcode}</p>
+                              {p.price != null && (
+                                <span className="text-[10px] font-bold text-orange-500">
+                                  R$ {p.price.toFixed(2).replace('.', ',')}
+                                </span>
+                              )}
+                            </div>
                           </div>
                           <button
                             onClick={() => { deleteCatalogProduct(p.barcode); setCatalog(getCatalog()); }}

@@ -1,6 +1,7 @@
 export interface CatalogProduct {
   barcode: string;
   name: string;
+  price?: number; // preço de venda em R$
 }
 
 export interface ApInventoryItem {
