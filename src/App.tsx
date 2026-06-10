@@ -29,7 +29,9 @@ const IconRenderer = ({ name, className }: { name: string; className?: string })
   return <IconComponent className={className} />;
 };
 
-export default function App() {
+interface AppProps { onAdminAccess?: () => void; }
+
+export default function App({ onAdminAccess }: AppProps) {
   // Navigation & Category
   const [selectedCategory, setSelectedCategory] = useState<Category>('combos');
   const [searchQuery, setSearchQuery] = useState('');
@@ -590,6 +592,16 @@ export default function App() {
             </motion.div>
           )}
         </AnimatePresence>
+
+        {/* Acesso restrito — visível mas discreto */}
+        <div className="flex-shrink-0 py-1.5 flex justify-center bg-slate-50 border-t border-slate-100/80">
+          <button
+            onClick={onAdminAccess}
+            className="text-[10px] text-slate-300 hover:text-slate-500 font-medium tracking-wide cursor-pointer transition-colors"
+          >
+            ⚙ Controle de Estoque
+          </button>
+        </div>
 
       </div>
     </div>
