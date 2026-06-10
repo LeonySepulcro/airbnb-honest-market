@@ -3,7 +3,7 @@ import {
   Film, Coffee, Beer, Sparkles, CupSoda, Droplet, GlassWater,
   Zap, Citrus, Package, Cookie, Flame, Heart, Smartphone,
   HeartPulse, Smile, Shield, Activity, Nut, Plus, Minus,
-  ShoppingBag, X, Check, Search, Copy, Edit3,
+  ShoppingBag, X, Check, Search, Copy,
   CheckCircle2, Heart as HeartIcon, Compass,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
@@ -36,8 +36,6 @@ export default function App() {
 
   // Apartment display (read-only from URL or default)
   const [apNumber, setApNumber] = useState('Ap 402 - Ed. Rio Arno');
-  const [isEditingAp, setIsEditingAp] = useState(false);
-  const [tempApNumber, setTempApNumber] = useState('Ap 402 - Ed. Rio Arno');
   const [guestName, setGuestName] = useState('');
 
   // Cart & checkout
@@ -51,10 +49,7 @@ export default function App() {
     // 1. Lê o parâmetro ?ap= da URL
     const params = new URLSearchParams(window.location.search);
     const ap = params.get('ap');
-    if (ap) {
-      setApNumber(ap);
-      setTempApNumber(ap);
-    }
+    if (ap) setApNumber(ap);
 
     // 2. Intercepta o botão Voltar do Android para fechar modais internamente
     //    em vez de sair do navegador/app.
@@ -84,17 +79,6 @@ export default function App() {
     }
   }, [isCheckoutOpen, isSubmitSuccessful]);
   // ──────────────────────────────────────────────────────────────────────────
-
-  // Edição do número do apto no header
-  const handleSaveAp = () => {
-    if (tempApNumber.trim()) {
-      setApNumber(tempApNumber.trim());
-      setIsEditingAp(false);
-      const newUrl = new URL(window.location.href);
-      newUrl.searchParams.set('ap', tempApNumber.trim());
-      window.history.replaceState({}, '', newUrl.toString());
-    }
-  };
 
   // Cart operations
   const addToCart = (product: Product) => {
@@ -182,38 +166,7 @@ export default function App() {
           <div className="flex justify-between items-center">
             <div className="flex flex-col">
               <span className="text-[10px] font-bold uppercase tracking-widest text-orange-500">Airbnb Checkout</span>
-              <div className="flex items-center gap-1.5 mt-0.5">
-                {isEditingAp ? (
-                  <div className="flex items-center gap-1 bg-slate-50 px-2 py-0.5 rounded-lg border border-slate-200">
-                    <input
-                      type="text"
-                      value={tempApNumber}
-                      onChange={(e) => setTempApNumber(e.target.value)}
-                      onKeyDown={(e) => e.key === 'Enter' && handleSaveAp()}
-                      className="w-40 bg-transparent text-slate-800 font-black text-sm focus:outline-none"
-                      placeholder="Ex: Ap 402 - Ed. Rio Arno"
-                      maxLength={30}
-                      autoFocus
-                    />
-                    <button
-                      onClick={handleSaveAp}
-                      className="text-emerald-600 hover:text-emerald-700 font-bold p-0.5 cursor-pointer"
-                      aria-label="Confirmar"
-                    >
-                      <Check className="w-4 h-4 stroke-[3]" />
-                    </button>
-                  </div>
-                ) : (
-                  <button
-                    onClick={() => setIsEditingAp(true)}
-                    className="text-lg font-extrabold text-orange-600 hover:text-orange-700 flex items-center gap-1 cursor-pointer select-none group transition-colors"
-                    id="btn-edit-apartment"
-                  >
-                    <span>{apNumber}</span>
-                    <Edit3 className="w-3.5 h-3.5 text-slate-400 group-hover:text-slate-600 ml-0.5 opacity-80" />
-                  </button>
-                )}
-              </div>
+              <span className="text-lg font-extrabold text-orange-600 mt-0.5">{apNumber}</span>
             </div>
 
             <div className="flex items-center gap-2">
@@ -224,13 +177,13 @@ export default function App() {
                 )}`}
                 target="_blank"
                 rel="noopener noreferrer"
-                animate={{ scale: [1, 1.12, 1], y: [0, -4, 0] }}
+                animate={{ scale: [1, 1.06, 1], y: [0, -3, 0] }}
                 transition={{ duration: 2.2, repeat: Infinity, ease: 'easeInOut' }}
-                className="w-10 h-10 rounded-full bg-emerald-50 flex items-center justify-center border border-emerald-200 shadow-sm cursor-pointer"
-                title="Pedir Reabastecimento"
+                className="flex items-center gap-1.5 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 shadow-sm cursor-pointer rounded-full px-3 py-1.5"
                 aria-label="Pedir Reabastecimento"
               >
-                <span className="text-base">🔄</span>
+                <span className="text-sm">🔄</span>
+                <span className="text-[11px] font-bold text-emerald-700 whitespace-nowrap">Pedir reabastecimento</span>
               </motion.a>
 
               <div className="w-10 h-10 rounded-full bg-orange-50 flex items-center justify-center border border-orange-100/50">
