@@ -57,10 +57,23 @@ export default function BarcodeScanner({ onScan, active = true }: Props) {
     (async () => {
       try {
         const stream = await navigator.mediaDevices.getUserMedia({
-          video: { facingMode: { ideal: 'environment' } },
+          video: {
+            facingMode: 'environment',
+            width:  { ideal: 1920 },
+            height: { ideal: 1080 },
+          },
         });
         if (stopped) { stream.getTracks().forEach(t => t.stop()); return; }
         streamRef.current = stream;
+
+        // Tenta forçar zoom mínimo (1x) para evitar a lente grande-angular (0.6x)
+        try {
+          const track = stream.getVideoTracks()[0];
+          const caps = (track as any).getCapabilities?.();
+          if (caps?.zoom) {
+            await (track as any).applyConstraints({ advanced: [{ zoom: caps.zoom.min ?? 1 }] });
+          }
+        } catch { /* não suportado neste dispositivo, ignora */ }
         if (videoRef.current) {
           videoRef.current.srcObject = stream;
           await videoRef.current.play();

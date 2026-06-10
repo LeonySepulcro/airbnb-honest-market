@@ -1,8 +1,8 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import {
   ArrowLeft, LogOut, Package, Search, Plus, Trash2,
-  CheckCircle2, XCircle, X, Camera, Inbox,
+  CheckCircle2, XCircle, X, Camera, Inbox, Edit2,
 } from 'lucide-react';
 import BarcodeScanner from './BarcodeScanner';
 import {
@@ -19,8 +19,33 @@ type Screen = 'home' | 'abastecer' | 'conferir' | 'cadastro';
 interface Toast { id: number; msg: string; type: 'ok' | 'warn' | 'err'; }
 let _tid = 0;
 
+/** "600" → "R$ 6,00" (cents string para preço formatado) */
+function centsToReais(raw: string): string {
+  const n = parseInt(raw || '0', 10);
+  if (!n) return '';
+  return `R$ ${(n / 100).toFixed(2).replace('.', ',')}`;
+}
+/** Preço float para cents string (6.0 → "600") */
+function priceToCents(price?: number): string {
+  if (price == null) return '';
+  return String(Math.round(price * 100));
+}
+
 export default function AdminApp({ onLogout }: Props) {
   const [screen, setScreen] = useState<Screen>('home');
+  const screenRef = useRef<Screen>('home');
+  useEffect(() => { screenRef.current = screen; }, [screen]);
+
+  // Intercepta botão de voltar do Android — navega dentro do admin ao invés de sair
+  useEffect(() => {
+    window.history.pushState({ admin: true }, '');
+    const onPop = () => {
+      if (screenRef.current !== 'home') setScreen('home');
+      window.history.pushState({ admin: true }, '');
+    };
+    window.addEventListener('popstate', onPop);
+    return () => window.removeEventListener('popstate', onPop);
+  }, []);
 
   // Toasts
   const [toasts, setToasts] = useState<Toast[]>([]);
@@ -51,8 +76,8 @@ export default function AdminApp({ onLogout }: Props) {
   }, [toast]);
 
   const registerUnknown = () => {
-    if (!unknownCode || !newName.trim()) return;
-    const price = parseFloat(newPrice.replace(',', '.'));
+    if (!unknownCode || !newName.trim() || !newPrice.trim()) return;
+    const price = parseInt(newPrice, 10) / 100;
     const prod: CatalogProduct = {
       barcode: unknownCode,
       name: newName.trim(),
@@ -115,12 +140,12 @@ export default function AdminApp({ onLogout }: Props) {
     const existing = getProductByBarcode(code);
     setCadastroCode(code);
     setCadastroName(existing?.name || '');
-    setCadastroPrice(existing?.price != null ? String(existing.price) : '');
+    setCadastroPrice(existing?.price != null ? priceToCents(existing.price) : '');
   }, []);
 
   const saveCadastro = () => {
-    if (!cadastroCode || !cadastroName.trim()) return;
-    const price = parseFloat(cadastroPrice.replace(',', '.'));
+    if (!cadastroCode || !cadastroName.trim() || !cadastroPrice.trim()) return;
+    const price = parseInt(cadastroPrice, 10) / 100;
     upsertCatalogProduct({
       barcode: cadastroCode,
       name: cadastroName.trim(),
@@ -348,21 +373,23 @@ export default function AdminApp({ onLogout }: Props) {
                       className="w-full border border-slate-200 rounded-xl p-3 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500"
                       autoFocus
                     />
-                    <div className="relative">
-                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm font-bold text-slate-400">R$</span>
+                    <div>
                       <input
                         type="text"
-                        inputMode="decimal"
-                        placeholder="0,00"
+                        inputMode="numeric"
+                        placeholder="Preço em centavos: 600 = R$ 6,00"
                         value={newPrice}
-                        onChange={e => setNewPrice(e.target.value)}
+                        onChange={e => setNewPrice(e.target.value.replace(/\D/g, ''))}
                         onKeyDown={e => e.key === 'Enter' && registerUnknown()}
-                        className="w-full border border-slate-200 rounded-xl p-3 pl-9 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500"
+                        className="w-full border border-slate-200 rounded-xl p-3 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500"
                       />
+                      {newPrice && (
+                        <p className="text-xs font-bold text-orange-500 mt-1 ml-1">{centsToReais(newPrice)}</p>
+                      )}
                     </div>
                     <button
                       onClick={registerUnknown}
-                      disabled={!newName.trim()}
+                      disabled={!newName.trim() || !newPrice.trim()}
                       className="w-full bg-orange-500 hover:bg-orange-600 disabled:bg-slate-200 disabled:text-slate-400 text-white font-black py-3 rounded-xl transition-all cursor-pointer"
                     >
                       Cadastrar e Adicionar
@@ -557,26 +584,28 @@ export default function AdminApp({ onLogout }: Props) {
                     className="w-full border border-slate-200 rounded-xl p-3 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500"
                     autoFocus
                   />
-                  <div className="relative">
-                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm font-bold text-slate-400">R$</span>
+                  <div>
                     <input
                       type="text"
-                      inputMode="decimal"
-                      placeholder="0,00"
+                      inputMode="numeric"
+                      placeholder="Preço em centavos: 600 = R$ 6,00"
                       value={cadastroPrice}
-                      onChange={e => setCadastroPrice(e.target.value)}
+                      onChange={e => setCadastroPrice(e.target.value.replace(/\D/g, ''))}
                       onKeyDown={e => e.key === 'Enter' && saveCadastro()}
-                      className="w-full border border-slate-200 rounded-xl p-3 pl-9 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500"
+                      className="w-full border border-slate-200 rounded-xl p-3 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500"
                     />
+                    {cadastroPrice && (
+                      <p className="text-xs font-bold text-orange-500 mt-1 ml-1">{centsToReais(cadastroPrice)}</p>
+                    )}
                   </div>
                   <button
                     onClick={saveCadastro}
-                    disabled={!cadastroName.trim()}
+                    disabled={!cadastroName.trim() || !cadastroPrice.trim()}
                     className="w-full bg-orange-500 hover:bg-orange-600 disabled:bg-slate-200 disabled:text-slate-400 text-white font-black py-3 rounded-xl transition-all cursor-pointer"
                   >
                     Salvar Produto
                   </button>
-                  <button onClick={() => { setCadastroCode(null); setCadastroPrice(''); }} className="text-slate-400 text-sm text-center cursor-pointer py-1">
+                  <button onClick={() => { setCadastroCode(null); setCadastroName(''); setCadastroPrice(''); }} className="text-slate-400 text-sm text-center cursor-pointer py-1">
                     Cancelar
                   </button>
                 </div>
@@ -613,12 +642,24 @@ export default function AdminApp({ onLogout }: Props) {
                               )}
                             </div>
                           </div>
-                          <button
-                            onClick={() => { deleteCatalogProduct(p.barcode); setCatalog(getCatalog()); }}
-                            className="text-red-300 hover:text-red-500 cursor-pointer p-1 transition-colors"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
+                          <div className="flex items-center gap-1">
+                            <button
+                              onClick={() => {
+                                setCadastroCode(p.barcode);
+                                setCadastroName(p.name);
+                                setCadastroPrice(priceToCents(p.price));
+                              }}
+                              className="text-slate-300 hover:text-blue-500 cursor-pointer p-1 transition-colors"
+                            >
+                              <Edit2 className="w-4 h-4" />
+                            </button>
+                            <button
+                              onClick={() => { deleteCatalogProduct(p.barcode); setCatalog(getCatalog()); }}
+                              className="text-red-300 hover:text-red-500 cursor-pointer p-1 transition-colors"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </div>
                         </div>
                       ))}
                     </div>
