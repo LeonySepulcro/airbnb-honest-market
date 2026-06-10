@@ -33,20 +33,32 @@ function isValidEAN(code: string): boolean {
   return false;
 }
 
+const CAMERA_CACHE_KEY = 'hm_main_camera_id';
+
 /**
- * Abre a câmera traseira principal (com autofoco), evitando a lente grande-angular (0.6x).
+ * Abre a câmera traseira principal (com autofoco), evitando a lente ultra-wide (0.6x).
  *
- * Estratégia:
- * 1. Pede câmera "environment" com alta resolução (hint para o sensor principal).
- * 2. Checa se tem autofoco contínuo (focusMode: continuous).
- *    - Sim → câmera correta, usa ela.
- *    - Não → provavelmente ultra-wide com foco fixo; descarta e enumera todas as câmeras.
- * 3. Enumera os dispositivos de vídeo procurando o primeiro com facingMode=environment
- *    E focusMode=continuous.
- * 4. Fallback final: câmera environment sem filtro.
+ * Na 1ª vez faz enumeração completa para achar a câmera certa e salva o deviceId
+ * no localStorage. Nas chamadas seguintes abre diretamente — sem piscar outras câmeras.
+ * Se o deviceId cacheado falhar (troca de dispositivo, permissão revogada), limpa o
+ * cache e refaz a enumeração automaticamente.
  */
 async function openMainRearCamera(): Promise<MediaStream> {
-  // 1ª tentativa: resolução alta costuma escolher o sensor principal
+  // ── Caminho rápido: deviceId já conhecido ────────────────────────────────
+  const cachedId = localStorage.getItem(CAMERA_CACHE_KEY);
+  if (cachedId) {
+    try {
+      const s    = await navigator.mediaDevices.getUserMedia({ video: { deviceId: { exact: cachedId } } });
+      const caps = (s.getVideoTracks()[0] as any).getCapabilities?.() ?? {};
+      if (((caps.focusMode as string[] | undefined) ?? []).includes('continuous')) return s;
+      // Cache inválido (câmera trocou de comportamento)
+      s.getTracks().forEach(t => t.stop());
+    } catch { /* cache inválido */ }
+    localStorage.removeItem(CAMERA_CACHE_KEY);
+  }
+
+  // ── Enumeração completa (somente na 1ª vez) ──────────────────────────────
+  // Abre câmera environment com resolução alta como 1ª tentativa
   let stream: MediaStream;
   try {
     stream = await navigator.mediaDevices.getUserMedia({
@@ -60,26 +72,31 @@ async function openMainRearCamera(): Promise<MediaStream> {
   const caps  = (track as any).getCapabilities?.() ?? {};
   const modes = (caps.focusMode as string[] | undefined) ?? [];
 
-  // Se tem autofoco contínuo → é a câmera correta
-  if (modes.includes('continuous')) return stream;
+  if (modes.includes('continuous')) {
+    // Câmera correta — cacheia o deviceId para as próximas aberturas
+    const id = ((track as any).getSettings?.() ?? {}).deviceId as string | undefined;
+    if (id) localStorage.setItem(CAMERA_CACHE_KEY, id);
+    return stream;
+  }
 
-  // Câmera sem autofoco (provavelmente ultra-wide) → descarta e busca outra
+  // Ultra-wide detectada (foco fixo) — descarta e enumera todas as câmeras
   stream.getTracks().forEach(t => t.stop());
 
   const devices = await navigator.mediaDevices.enumerateDevices();
-  const cameras = devices.filter(d => d.kind === 'videoinput');
-
-  for (const cam of cameras) {
-    if (/ultra|wide|0\.6/i.test(cam.label)) continue; // evita ultra-wide pelo label
+  for (const cam of devices.filter(d => d.kind === 'videoinput')) {
+    if (/ultra|wide|0\.6/i.test(cam.label)) continue;
     try {
       const s      = await navigator.mediaDevices.getUserMedia({ video: { deviceId: { exact: cam.deviceId } } });
       const t      = s.getVideoTracks()[0];
       const c      = (t as any).getCapabilities?.() ?? {};
       const isBack = ((c.facingMode as string[] | undefined) ?? []).includes('environment');
       const hasAF  = ((c.focusMode  as string[] | undefined) ?? []).includes('continuous');
-      if (isBack && hasAF) return s;
+      if (isBack && hasAF) {
+        localStorage.setItem(CAMERA_CACHE_KEY, cam.deviceId);
+        return s;
+      }
       s.getTracks().forEach(t => t.stop());
-    } catch { /* tenta próxima câmera */ }
+    } catch { /* tenta próxima */ }
   }
 
   // Fallback final
