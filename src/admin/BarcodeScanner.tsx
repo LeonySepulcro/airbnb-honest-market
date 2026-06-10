@@ -12,24 +12,45 @@ declare class BarcodeDetector {
   detect(image: HTMLVideoElement): Promise<Array<{ rawValue: string }>>;
 }
 
-export default function BarcodeScanner({ onScan, active = true }: Props) {
-  const videoRef   = useRef<HTMLVideoElement>(null);
-  const streamRef  = useRef<MediaStream | null>(null);
-  const rafRef     = useRef<number>(0);
-  const lastRef    = useRef<{ code: string; time: number } | null>(null);
-  const onScanRef  = useRef(onScan);
+// ── Validação de checksum EAN-13 ────────────────────────────────────────────
+// Rejeita leituras parciais ou corrompidas antes mesmo de chegar no app
+function isValidEAN(code: string): boolean {
+  if (!/^\d+$/.test(code)) return false;
 
-  // Mantém a referência do callback sempre atualizada sem re-criar o effect
+  if (code.length === 13) {
+    const d = code.split('').map(Number);
+    const sum = d.slice(0, 12).reduce((acc, n, i) => acc + n * (i % 2 === 0 ? 1 : 3), 0);
+    return (10 - (sum % 10)) % 10 === d[12];
+  }
+
+  if (code.length === 8) {
+    // EAN-8: pesos invertidos (posições ímpares × 3, pares × 1)
+    const d = code.split('').map(Number);
+    const sum = d.slice(0, 7).reduce((acc, n, i) => acc + n * (i % 2 === 0 ? 3 : 1), 0);
+    return (10 - (sum % 10)) % 10 === d[7];
+  }
+
+  return false;
+}
+
+export default function BarcodeScanner({ onScan, active = true }: Props) {
+  const videoRef    = useRef<HTMLVideoElement>(null);
+  const streamRef   = useRef<MediaStream | null>(null);
+  const rafRef      = useRef<number>(0);
+  const lastRef     = useRef<{ code: string; time: number } | null>(null);
+  // Confirmação: exige 2 leituras idênticas consecutivas antes de disparar
+  const pendingRef  = useRef<{ code: string; count: number } | null>(null);
+  const onScanRef   = useRef(onScan);
+
   useEffect(() => { onScanRef.current = onScan; }, [onScan]);
 
   useEffect(() => {
     if (!active) return;
 
-    if (!('BarcodeDetector' in window)) return; // tratado no render
+    if (!('BarcodeDetector' in window)) return;
 
-    const detector = new BarcodeDetector({
-      formats: ['ean_13', 'ean_8', 'code_128', 'code_39', 'qr_code'],
-    });
+    // Apenas formatos EAN — ignora QR, Code128, etc. que geram leituras espúrias
+    const detector = new BarcodeDetector({ formats: ['ean_13', 'ean_8'] });
 
     let stopped = false;
 
@@ -52,16 +73,37 @@ export default function BarcodeScanner({ onScan, active = true }: Props) {
               const results = await detector.detect(videoRef.current);
               if (results.length > 0) {
                 const code = results[0].rawValue;
-                const now  = Date.now();
-                // cooldown de 2,5s por código para evitar leitura dupla
-                if (
-                  !lastRef.current ||
-                  lastRef.current.code !== code ||
-                  now - lastRef.current.time > 2500
-                ) {
-                  lastRef.current = { code, time: now };
-                  onScanRef.current(code);
+
+                // 1. Rejeita códigos que não passam no checksum EAN
+                if (!isValidEAN(code)) {
+                  pendingRef.current = null;
+                  rafRef.current = requestAnimationFrame(loop);
+                  return;
                 }
+
+                // 2. Confirmação dupla: mesmo código em frames consecutivos
+                if (pendingRef.current?.code === code) {
+                  pendingRef.current.count++;
+                } else {
+                  pendingRef.current = { code, count: 1 };
+                }
+
+                if (pendingRef.current.count >= 2) {
+                  pendingRef.current = null;
+                  const now = Date.now();
+                  // 3. Cooldown de 3s por código para evitar adição repetida acidental
+                  if (
+                    !lastRef.current ||
+                    lastRef.current.code !== code ||
+                    now - lastRef.current.time > 3000
+                  ) {
+                    lastRef.current = { code, time: now };
+                    onScanRef.current(code);
+                  }
+                }
+              } else {
+                // Nenhum código visível: reseta o candidato pendente
+                pendingRef.current = null;
               }
             } catch { /* frame descartado */ }
           }
