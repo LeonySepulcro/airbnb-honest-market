@@ -216,8 +216,26 @@ export default function App() {
               </div>
             </div>
 
-            <div className="w-10 h-10 rounded-full bg-orange-50 flex items-center justify-center border border-orange-100/50">
-              <span className="text-lg">🏠</span>
+            <div className="flex items-center gap-2">
+              {/* Botão de reabastecimento — animação leve de flutuação */}
+              <motion.a
+                href={`https://wa.me/${WHATSAPP_NUM}?text=${encodeURIComponent(
+                  `Olá! Estou hospedado no ${apNumber} e gostaria de solicitar um reabastecimento do frigobar. 🔄\n\nPode me dizer o que está disponível?`
+                )}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                animate={{ scale: [1, 1.12, 1], y: [0, -4, 0] }}
+                transition={{ duration: 2.2, repeat: Infinity, ease: 'easeInOut' }}
+                className="w-10 h-10 rounded-full bg-emerald-50 flex items-center justify-center border border-emerald-200 shadow-sm cursor-pointer"
+                title="Pedir Reabastecimento"
+                aria-label="Pedir Reabastecimento"
+              >
+                <span className="text-base">🔄</span>
+              </motion.a>
+
+              <div className="w-10 h-10 rounded-full bg-orange-50 flex items-center justify-center border border-orange-100/50">
+                <span className="text-lg">🏠</span>
+              </div>
             </div>
           </div>
 
@@ -496,17 +514,10 @@ export default function App() {
                       <div className="absolute inset-x-2.5 h-0.5 bg-orange-500/80 animate-bounce top-8 pointer-events-none" />
                     </div>
 
-                    <p className="text-[10px] text-slate-500 mb-1.5 max-w-[240px]">
-                      Aponte a câmera para o QR Code ou use o código Copia e Cola abaixo.
-                    </p>
-                    <div className="text-[10px] bg-slate-100/80 border border-slate-200/50 text-slate-600 px-2.5 py-1 mb-3 rounded-lg leading-relaxed max-w-[240px]">
-                      Destinatário: <strong className="text-slate-800 font-bold">{MERCHANT_NAME}</strong><br />
-                      Chave Pix: <strong className="text-slate-800 font-mono font-bold text-[9px]">{CHAVE_PIX}</strong>
-                    </div>
-
+                    {/* Copia e Cola — logo abaixo do QR, primeira ação visível */}
                     <button
                       onClick={handleCopyPix}
-                      className={`w-full py-2.5 px-3 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-all outline-none border cursor-pointer ${
+                      className={`w-full py-2.5 px-3 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-all outline-none border cursor-pointer mb-3 ${
                         copiedPix
                           ? 'bg-emerald-500 border-emerald-600 text-white'
                           : 'bg-white hover:bg-slate-50 border-slate-200 text-slate-700 active:scale-95'
@@ -518,6 +529,15 @@ export default function App() {
                         <><Copy className="w-4 h-4 opacity-75" /> Copiar Código PIX Copia e Cola</>
                       )}
                     </button>
+
+                    {/* Info secundária */}
+                    <p className="text-[10px] text-slate-400 mb-1.5 max-w-[240px]">
+                      Ou aponte a câmera para o QR Code acima.
+                    </p>
+                    <div className="text-[10px] bg-slate-100/80 border border-slate-200/50 text-slate-500 px-2.5 py-1 rounded-lg leading-relaxed max-w-[240px]">
+                      Destinatário: <strong className="text-slate-700 font-bold">{MERCHANT_NAME}</strong><br />
+                      Chave Pix: <strong className="text-slate-700 font-mono font-bold text-[9px]">{CHAVE_PIX}</strong>
+                    </div>
                   </div>
                 </div>
 
@@ -531,10 +551,10 @@ export default function App() {
                   </div>
                   <button
                     onClick={() => setIsSubmitSuccessful(true)}
-                    className="w-full bg-orange-500 hover:bg-orange-600 active:scale-95 text-white font-black text-sm uppercase py-3.5 rounded-2xl flex items-center justify-center gap-2 shadow-lg transition-all cursor-pointer"
+                    className="w-full bg-orange-500 hover:bg-orange-600 active:scale-95 text-white font-black text-sm py-3.5 rounded-2xl flex items-center justify-center gap-2 shadow-lg transition-all cursor-pointer"
                     id="btn-confirm-payment"
                   >
-                    Confirmar Pagamento Realizado
+                    Já fiz o PIX — pode conferir!
                     <CheckCircle2 className="w-5 h-5" />
                   </button>
                   <p className="text-[9px] text-slate-400 text-center">
