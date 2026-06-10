@@ -33,6 +33,59 @@ function isValidEAN(code: string): boolean {
   return false;
 }
 
+/**
+ * Abre a câmera traseira principal (com autofoco), evitando a lente grande-angular (0.6x).
+ *
+ * Estratégia:
+ * 1. Pede câmera "environment" com alta resolução (hint para o sensor principal).
+ * 2. Checa se tem autofoco contínuo (focusMode: continuous).
+ *    - Sim → câmera correta, usa ela.
+ *    - Não → provavelmente ultra-wide com foco fixo; descarta e enumera todas as câmeras.
+ * 3. Enumera os dispositivos de vídeo procurando o primeiro com facingMode=environment
+ *    E focusMode=continuous.
+ * 4. Fallback final: câmera environment sem filtro.
+ */
+async function openMainRearCamera(): Promise<MediaStream> {
+  // 1ª tentativa: resolução alta costuma escolher o sensor principal
+  let stream: MediaStream;
+  try {
+    stream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: 'environment', width: { ideal: 1920 }, height: { ideal: 1080 } },
+    });
+  } catch {
+    stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+  }
+
+  const track = stream.getVideoTracks()[0];
+  const caps  = (track as any).getCapabilities?.() ?? {};
+  const modes = (caps.focusMode as string[] | undefined) ?? [];
+
+  // Se tem autofoco contínuo → é a câmera correta
+  if (modes.includes('continuous')) return stream;
+
+  // Câmera sem autofoco (provavelmente ultra-wide) → descarta e busca outra
+  stream.getTracks().forEach(t => t.stop());
+
+  const devices = await navigator.mediaDevices.enumerateDevices();
+  const cameras = devices.filter(d => d.kind === 'videoinput');
+
+  for (const cam of cameras) {
+    if (/ultra|wide|0\.6/i.test(cam.label)) continue; // evita ultra-wide pelo label
+    try {
+      const s      = await navigator.mediaDevices.getUserMedia({ video: { deviceId: { exact: cam.deviceId } } });
+      const t      = s.getVideoTracks()[0];
+      const c      = (t as any).getCapabilities?.() ?? {};
+      const isBack = ((c.facingMode as string[] | undefined) ?? []).includes('environment');
+      const hasAF  = ((c.focusMode  as string[] | undefined) ?? []).includes('continuous');
+      if (isBack && hasAF) return s;
+      s.getTracks().forEach(t => t.stop());
+    } catch { /* tenta próxima câmera */ }
+  }
+
+  // Fallback final
+  return navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+}
+
 export default function BarcodeScanner({ onScan, active = true }: Props) {
   const videoRef    = useRef<HTMLVideoElement>(null);
   const streamRef   = useRef<MediaStream | null>(null);
@@ -56,24 +109,9 @@ export default function BarcodeScanner({ onScan, active = true }: Props) {
 
     (async () => {
       try {
-        const stream = await navigator.mediaDevices.getUserMedia({
-          video: {
-            facingMode: 'environment',
-            width:  { ideal: 1920 },
-            height: { ideal: 1080 },
-          },
-        });
+        const stream = await openMainRearCamera();
         if (stopped) { stream.getTracks().forEach(t => t.stop()); return; }
         streamRef.current = stream;
-
-        // Tenta forçar zoom mínimo (1x) para evitar a lente grande-angular (0.6x)
-        try {
-          const track = stream.getVideoTracks()[0];
-          const caps = (track as any).getCapabilities?.();
-          if (caps?.zoom) {
-            await (track as any).applyConstraints({ advanced: [{ zoom: caps.zoom.min ?? 1 }] });
-          }
-        } catch { /* não suportado neste dispositivo, ignora */ }
         if (videoRef.current) {
           videoRef.current.srcObject = stream;
           await videoRef.current.play();
