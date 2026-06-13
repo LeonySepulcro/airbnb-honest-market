@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Honest Market</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    @page { size: A4 portrait; margin: 0; }
+
+    body {
+      font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+      background: #e0e0e0;
+      display: flex;
+      justify-content: center;
+      padding: 24px;
+    }
+
+    .page {
+      background: #fff;
+      color: #111;
+      width: 210mm;
+      min-height: 297mm;
+      padding: 18mm 20mm;
+      display: flex;
+      flex-direction: column;
+    }
+
+    @media print {
+      body { background: #fff; padding: 0; display: block; }
+      .page { width: 210mm; min-height: 297mm; padding: 16mm 18mm; }
+    }
+
+    /* ── Header ─────────────────────────────────────────────── */
+    .brand {
+      text-align: center;
+      padding-bottom: 6mm;
+      border-bottom: 0.4mm solid #111;
+    }
+    .brand h1 {
+      font-size: 28pt;
+      font-weight: 900;
+      letter-spacing: -0.5pt;
+      text-transform: uppercase;
+    }
+    .brand p {
+      font-size: 8pt;
+      color: #666;
+      margin-top: 2mm;
+      letter-spacing: 2pt;
+      text-transform: uppercase;
+    }
+
+    /* ── Intro ──────────────────────────────────────────────── */
+    .intro {
+      text-align: center;
+      font-size: 10.5pt;
+      color: #333;
+      line-height: 1.6;
+      padding: 5mm 10mm;
+    }
+    .intro strong { color: #111; }
+
+    /* ── Passos ─────────────────────────────────────────────── */
+    .steps {
+      display: flex;
+      flex-direction: column;
+      gap: 3.5mm;
+      padding-bottom: 7mm;
+    }
+    .step {
+      display: flex;
+      gap: 4mm;
+      align-items: flex-start;
+    }
+    .step-num {
+      width: 7mm;
+      height: 7mm;
+      border: 0.4mm solid #111;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 8pt;
+      font-weight: 900;
+      flex-shrink: 0;
+    }
+    .step-title {
+      font-size: 10.5pt;
+      font-weight: 700;
+      color: #111;
+    }
+    .step-sub {
+      font-size: 9pt;
+      color: #555;
+      margin-top: 0.5mm;
+      line-height: 1.4;
+    }
+
+    /* ── QR Code ────────────────────────────────────────────── */
+    .qr-section {
+      flex: 1;
+      text-align: center;
+      border-top: 0.4mm solid #111;
+      padding: 7mm 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+    }
+    .qr-label {
+      font-size: 7pt;
+      letter-spacing: 2pt;
+      text-transform: uppercase;
+      color: #888;
+      margin-bottom: 5mm;
+    }
+    .qr-border {
+      border: 0.5mm solid #111;
+      padding: 3mm;
+      display: inline-block;
+    }
+    .qr-border img {
+      display: block;
+      width: 56mm;
+      height: 56mm;
+    }
+    .ap-name {
+      font-size: 16pt;
+      font-weight: 900;
+      margin-top: 4mm;
+      letter-spacing: -0.3pt;
+    }
+    .ap-url {
+      font-size: 7pt;
+      color: #aaa;
+      font-family: monospace;
+      margin-top: 1.5mm;
+    }
+
+    /* ── Footer ─────────────────────────────────────────────── */
+    .footer {
+      border-top: 0.4mm solid #111;
+      padding-top: 5mm;
+      font-size: 8.5pt;
+      color: #555;
+      text-align: center;
+      line-height: 1.8;
+    }
+    .footer strong { color: #111; }
+  </style>
+</head>
+<body>
+  <div class="page">
+
+    <div class="brand">
+      <h1>Honest Market</h1>
+      <p>Frigobar de confiança &middot; Disponível 24 horas</p>
+    </div>
+
+    <p class="intro">
+      Bebidas, snacks e utilidades no seu apartamento, a qualquer hora.<br>
+      <strong>Nós confiamos em você</strong> — pegue o que precisar e pague via PIX.
+    </p>
+
+    <div class="steps">
+      <div class="step">
+        <div class="step-num">1</div>
+        <div>
+          <div class="step-title">Abra a câmera do celular</div>
+          <div class="step-sub">Aponte para o QR Code abaixo para abrir o cardápio</div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">2</div>
+        <div>
+          <div class="step-title">Escolha o que precisar</div>
+          <div class="step-sub">Navegue pelo cardápio e monte seu carrinho</div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">3</div>
+        <div>
+          <div class="step-title">Pague via PIX</div>
+          <div class="step-sub">Escaneie o QR Code do app ou copie a chave. É só isso.</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="qr-section">
+      <p class="qr-label">Escaneie para acessar</p>
+      <div class="qr-border">
+        <img id="qr-img" src="" alt="QR Code do apartamento">
+      </div>
+      <p class="ap-name" id="ap-name"></p>
+      <p class="ap-url"  id="ap-url"></p>
+    </div>
+
+    <div class="footer">
+      Precisa de ajuda ou quer agendar um reabastecimento?<br>
+      No app, toque em <strong>"? Ajuda"</strong> ou <strong>"Pedir reabastecimento"</strong>
+      para falar com o anfitrião pelo WhatsApp.
+    </div>
+
+  </div>
+
+  <script>
+    var ap  = new URLSearchParams(location.search).get('ap') || 'Apartamento';
+    var url = 'https://honest-market.vercel.app/?ap=' + encodeURIComponent(ap);
+    var qr  = 'https://api.qrserver.com/v1/create-qr-code/?size=300x300&qzone=1&data=' + encodeURIComponent(url);
+
+    document.getElementById('qr-img').src  = qr;
+    document.getElementById('ap-name').textContent = ap;
+    document.getElementById('ap-url').textContent  = url;
+  </script>
+</body>
+</html>
