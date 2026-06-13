@@ -298,15 +298,17 @@ export default function AdminApp({ onLogout }: Props) {
                       <button
                         key={ap.key}
                         onClick={() => { saveSelectedAp(ap.key); setCurrentAp(ap.key); }}
-                        className={`w-full px-4 py-3 flex items-center justify-between text-left transition-colors active:bg-slate-50 ${isActive ? 'bg-orange-50/60' : ''}`}
+                        className={`w-full px-4 py-3.5 flex items-center justify-between text-left transition-colors ${
+                          isActive ? 'bg-orange-500' : 'hover:bg-slate-50'
+                        }`}
                       >
                         <div className="flex-1 min-w-0">
-                          <p className={`text-sm font-bold ${isActive ? 'text-orange-700' : 'text-slate-600'}`}>
+                          <p className={`text-sm font-bold ${isActive ? 'text-white' : 'text-slate-700'}`}>
                             {ap.label}
                           </p>
-                          <p className="text-[10px] text-slate-400 font-mono truncate mt-0.5">{url}</p>
+                          <p className={`text-[10px] font-mono truncate mt-0.5 ${isActive ? 'text-orange-100' : 'text-slate-400'}`}>{url}</p>
                         </div>
-                        {isActive && <CheckCircle2 className="w-4 h-4 text-orange-500 flex-shrink-0 ml-2" />}
+                        {isActive && <CheckCircle2 className="w-4 h-4 text-white flex-shrink-0 ml-2" />}
                       </button>
                     );
                   })}

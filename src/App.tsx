@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import {
   Film, Coffee, Beer, Sparkles, CupSoda, Droplet, GlassWater,
   Zap, Citrus, Package, Cookie, Flame, Heart, Smartphone,
@@ -45,41 +45,40 @@ export default function App({ onAdminAccess }: AppProps) {
   const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
   const [copiedPix, setCopiedPix] = useState(false);
   const [isSubmitSuccessful, setIsSubmitSuccessful] = useState(false);
+  const [isReabastecimentoOpen, setIsReabastecimentoOpen] = useState(false);
+  const [isAjudaOpen, setIsAjudaOpen] = useState(false);
+
+  // Ref espelho dos modais — permite ler o estado atual dentro do listener sem stale closure
+  const openModalsRef = useRef({ reabastecimento: false, ajuda: false, submitSuccess: false, checkout: false });
+  useEffect(() => { openModalsRef.current.reabastecimento = isReabastecimentoOpen; }, [isReabastecimentoOpen]);
+  useEffect(() => { openModalsRef.current.ajuda           = isAjudaOpen;            }, [isAjudaOpen]);
+  useEffect(() => { openModalsRef.current.submitSuccess   = isSubmitSuccessful;     }, [isSubmitSuccessful]);
+  useEffect(() => { openModalsRef.current.checkout        = isCheckoutOpen;         }, [isCheckoutOpen]);
 
   // ─── URL param + Android back-button handling ─────────────────────────────
   useEffect(() => {
-    // 1. Lê o parâmetro ?ap= da URL
-    const params = new URLSearchParams(window.location.search);
-    const ap = params.get('ap');
+    const ap = new URLSearchParams(window.location.search).get('ap');
     if (ap) setApNumber(ap);
 
-    // 2. Intercepta o botão Voltar do Android para fechar modais internamente
-    //    em vez de sair do navegador/app.
+    // Fecha o modal mais recente ao pressionar Voltar (Android ou navegador)
     const handlePopState = () => {
-      // Prioridade: tela de sucesso > checkout
-      setIsSubmitSuccessful(prev => {
-        if (prev) return false;          // fecha tela de sucesso
-        setIsCheckoutOpen(inner => {
-          if (inner) return false;       // fecha checkout
-          // nada aberto → deixa o browser navegar normalmente
-          window.history.go(-1);
-          return inner;
-        });
-        return prev;
-      });
+      const m = openModalsRef.current;
+      if (m.reabastecimento) { setIsReabastecimentoOpen(false); return; }
+      if (m.ajuda)           { setIsAjudaOpen(false);            return; }
+      if (m.submitSuccess)   { setIsSubmitSuccessful(false);     return; }
+      if (m.checkout)        { setIsCheckoutOpen(false);         return; }
     };
 
     window.addEventListener('popstate', handlePopState);
     return () => window.removeEventListener('popstate', handlePopState);
   }, []);
 
-  // Sempre que um modal abre, empurra um estado na história para que o botão
-  // Voltar do Android acione o popstate acima em vez de sair.
+  // Empurra estado na história toda vez que qualquer modal abre
   useEffect(() => {
-    if (isCheckoutOpen || isSubmitSuccessful) {
+    if (isCheckoutOpen || isSubmitSuccessful || isReabastecimentoOpen || isAjudaOpen) {
       window.history.pushState({ modal: true }, '');
     }
-  }, [isCheckoutOpen, isSubmitSuccessful]);
+  }, [isCheckoutOpen, isSubmitSuccessful, isReabastecimentoOpen, isAjudaOpen]);
   // ──────────────────────────────────────────────────────────────────────────
 
   // Cart operations
@@ -173,12 +172,8 @@ export default function App({ onAdminAccess }: AppProps) {
 
             <div className="flex items-center gap-2">
               {/* Botão de reabastecimento — animação leve de flutuação */}
-              <motion.a
-                href={`https://wa.me/${WHATSAPP_NUM}?text=${encodeURIComponent(
-                  `Olá! Estou hospedado no ${apNumber} e gostaria de solicitar um reabastecimento do frigobar. 🔄\n\nPode me dizer o que está disponível?`
-                )}`}
-                target="_blank"
-                rel="noopener noreferrer"
+              <motion.button
+                onClick={() => setIsReabastecimentoOpen(true)}
                 animate={{ scale: [1, 1.06, 1], y: [0, -3, 0] }}
                 transition={{ duration: 2.2, repeat: Infinity, ease: 'easeInOut' }}
                 className="flex items-center gap-1.5 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 shadow-sm cursor-pointer rounded-full px-3 py-1.5"
@@ -186,7 +181,7 @@ export default function App({ onAdminAccess }: AppProps) {
               >
                 <span className="text-sm">🔄</span>
                 <span className="text-[11px] font-bold text-emerald-700 whitespace-nowrap">Pedir reabastecimento</span>
-              </motion.a>
+              </motion.button>
 
               <div className="w-10 h-10 rounded-full bg-orange-50 flex items-center justify-center border border-orange-100/50">
                 <span className="text-lg">🏠</span>
@@ -593,8 +588,100 @@ export default function App({ onAdminAccess }: AppProps) {
           )}
         </AnimatePresence>
 
-        {/* Acesso restrito — visível mas discreto */}
-        <div className="flex-shrink-0 py-1.5 flex justify-center bg-slate-50 border-t border-slate-100/80">
+        {/* ── MODAL REABASTECIMENTO ────────────────────────────────────────── */}
+        <AnimatePresence>
+          {isReabastecimentoOpen && (
+            <div className="absolute inset-0 bg-black/60 backdrop-blur-xs flex items-end justify-center z-40">
+              <motion.div
+                initial={{ y: '100%' }}
+                animate={{ y: 0 }}
+                exit={{ y: '100%' }}
+                transition={{ type: 'spring', damping: 25, stiffness: 300 }}
+                className="w-full bg-white rounded-t-[32px] p-6 flex flex-col gap-5"
+              >
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-emerald-50 flex items-center justify-center text-xl">🔄</div>
+                    <div>
+                      <h3 className="font-black text-slate-800">Reabastecimento</h3>
+                      <p className="text-[11px] text-slate-400">{apNumber}</p>
+                    </div>
+                  </div>
+                  <button onClick={() => setIsReabastecimentoOpen(false)} className="text-slate-400 cursor-pointer">
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
+
+                <div className="bg-amber-50 border border-amber-100 rounded-2xl p-4">
+                  <p className="text-sm font-bold text-slate-700">O abastecimento é feito com horário agendado.</p>
+                  <p className="text-xs text-slate-500 mt-1.5 leading-relaxed">
+                    Combine um horário pelo WhatsApp e o anfitrião irá até o apartamento na hora marcada.
+                  </p>
+                </div>
+
+                <a
+                  href={`https://wa.me/${WHATSAPP_NUM}?text=${encodeURIComponent(
+                    `Olá! Estou hospedado no ${apNumber} e gostaria de agendar um reabastecimento do frigobar. 🔄`
+                  )}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={() => setIsReabastecimentoOpen(false)}
+                  className="w-full bg-[#25D366] hover:bg-[#1ebe5d] active:scale-95 text-white font-black py-3.5 rounded-2xl flex items-center justify-center gap-2 transition-all cursor-pointer shadow-lg shadow-green-500/20"
+                >
+                  <svg className="w-4 h-4 fill-white" viewBox="0 0 24 24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
+                  Combinar pelo WhatsApp
+                </a>
+              </motion.div>
+            </div>
+          )}
+        </AnimatePresence>
+
+        {/* ── MODAL AJUDA ──────────────────────────────────────────────────── */}
+        <AnimatePresence>
+          {isAjudaOpen && (
+            <div className="absolute inset-0 bg-black/60 backdrop-blur-xs flex items-end justify-center z-40">
+              <motion.div
+                initial={{ y: '100%' }}
+                animate={{ y: 0 }}
+                exit={{ y: '100%' }}
+                transition={{ type: 'spring', damping: 25, stiffness: 300 }}
+                className="w-full bg-white rounded-t-[32px] p-6 flex flex-col gap-5"
+              >
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h3 className="font-black text-slate-800">Precisa de ajuda?</h3>
+                    <p className="text-xs text-slate-400 mt-0.5">O anfitrião está disponível no WhatsApp</p>
+                  </div>
+                  <button onClick={() => setIsAjudaOpen(false)} className="text-slate-400 cursor-pointer">
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
+
+                <a
+                  href={`https://wa.me/${WHATSAPP_NUM}?text=${encodeURIComponent(
+                    `Olá! Sou o hóspede do ${apNumber} e preciso de ajuda. 🙏`
+                  )}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={() => setIsAjudaOpen(false)}
+                  className="w-full bg-[#25D366] hover:bg-[#1ebe5d] active:scale-95 text-white font-black py-3.5 rounded-2xl flex items-center justify-center gap-2 transition-all cursor-pointer shadow-lg shadow-green-500/20"
+                >
+                  <svg className="w-4 h-4 fill-white" viewBox="0 0 24 24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
+                  Falar com o Anfitrião
+                </a>
+              </motion.div>
+            </div>
+          )}
+        </AnimatePresence>
+
+        {/* Footer — ajuda + acesso restrito */}
+        <div className="flex-shrink-0 py-1.5 flex justify-between items-center px-5 bg-slate-50 border-t border-slate-100/80">
+          <button
+            onClick={() => setIsAjudaOpen(true)}
+            className="text-[10px] text-slate-300 hover:text-slate-500 font-medium tracking-wide cursor-pointer transition-colors"
+          >
+            ? Ajuda
+          </button>
           <button
             onClick={onAdminAccess}
             className="text-[10px] text-slate-300 hover:text-slate-500 font-medium tracking-wide cursor-pointer transition-colors"
