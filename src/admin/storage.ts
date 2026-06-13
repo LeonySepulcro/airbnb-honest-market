@@ -1,14 +1,7 @@
 import { CatalogProduct, ApInventoryItem } from './types';
+import { APARTMENTS, type ApKey } from '../apartments';
 
-// ── Apartamentos ─────────────────────────────────────────────────────────────
-
-export const APARTMENTS = [
-  { key: 'hope_202',     label: 'Ed. Hope 202',  apParam: 'Ed. Hope 202'  },
-  { key: 'hope_203',     label: 'Ed. Hope 203',  apParam: 'Ed. Hope 203'  },
-  { key: 'rio_arno_402', label: 'Rio Arno 402',  apParam: 'Rio Arno 402'  },
-] as const;
-
-export type ApKey = typeof APARTMENTS[number]['key'];
+export { APARTMENTS, type ApKey };
 
 const AP_SELECTED_KEY = 'hm_selected_ap';
 
