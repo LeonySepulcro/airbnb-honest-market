@@ -8,6 +8,7 @@ import BarcodeScanner from './BarcodeScanner';
 import {
   getCatalog, getProductByBarcode, upsertCatalogProduct,
   deleteCatalogProduct, getApInventory, saveApInventory, clearApInventory,
+  APARTMENTS, type ApKey, getSelectedAp, setSelectedAp as saveSelectedAp,
 } from './storage';
 import { CatalogProduct, ApInventoryItem, CheckoutItem } from './types';
 
@@ -32,7 +33,8 @@ function priceToCents(price?: number): string {
 }
 
 export default function AdminApp({ onLogout }: Props) {
-  const [screen, setScreen] = useState<Screen>('home');
+  const [screen, setScreen]   = useState<Screen>('home');
+  const [currentAp, setCurrentAp] = useState<ApKey>(getSelectedAp);
   const screenRef = useRef<Screen>('home');
   useEffect(() => { screenRef.current = screen; }, [screen]);
 
@@ -97,7 +99,7 @@ export default function AdminApp({ onLogout }: Props) {
 
   const salvarAbastecimento = () => {
     if (!sessionItems.length) return;
-    saveApInventory(sessionItems);
+    saveApInventory(currentAp, sessionItems);
     toast(`${sessionItems.reduce((a, i) => a + i.quantity, 0)} itens salvos no ap`);
     setSessionItems([]);
     setScreen('home');
@@ -108,7 +110,7 @@ export default function AdminApp({ onLogout }: Props) {
   const [conferirDone, setConferirDone]   = useState(false);
 
   const startConferir = () => {
-    setCheckoutItems(getApInventory().map(i => ({ ...i, found: 0 })));
+    setCheckoutItems(getApInventory(currentAp).map(i => ({ ...i, found: 0 })));
     setConferirDone(false);
     setScreen('conferir');
   };
@@ -159,7 +161,7 @@ export default function AdminApp({ onLogout }: Props) {
   };
 
   // ── Dados para home ────────────────────────────────────────────────────────
-  const inventory     = getApInventory();
+  const inventory     = getApInventory(currentAp);
   const totalNoAp     = inventory.reduce((a, i) => a + i.quantity, 0);
   const catalogCount  = getCatalog().length;
 
@@ -181,7 +183,14 @@ export default function AdminApp({ onLogout }: Props) {
         </div>
       )}
       <div className="flex items-center gap-3">
-        {screen !== 'home' && <span className="text-sm font-bold text-slate-600">{title}</span>}
+        {screen !== 'home' && (
+          <div className="text-right">
+            <p className="text-sm font-bold text-slate-600">{title}</p>
+            <p className="text-[10px] font-bold text-orange-400">
+              {APARTMENTS.find(a => a.key === currentAp)?.label}
+            </p>
+          </div>
+        )}
         {screen === 'home' && (
           <button onClick={onLogout} className="flex items-center gap-1 text-slate-400 hover:text-slate-700 text-xs cursor-pointer">
             <LogOut className="w-3.5 h-3.5" /> Sair
@@ -222,7 +231,9 @@ export default function AdminApp({ onLogout }: Props) {
 
               {/* Status */}
               <div className="bg-orange-50 border border-orange-100 rounded-2xl p-4">
-                <p className="text-[10px] uppercase tracking-wider font-bold text-orange-400 mb-1">Status do Ap</p>
+                <p className="text-[10px] uppercase tracking-wider font-bold text-orange-400 mb-1">
+                  {APARTMENTS.find(a => a.key === currentAp)?.label ?? 'Ap'}
+                </p>
                 <div className="flex items-end gap-1.5">
                   <span className="text-3xl font-black text-orange-600">{totalNoAp}</span>
                   <span className="text-sm text-orange-500 font-bold pb-0.5">itens no ap</span>
@@ -273,6 +284,34 @@ export default function AdminApp({ onLogout }: Props) {
                   <p className="text-[11px] text-slate-400">{catalogCount} produtos cadastrados</p>
                 </div>
               </button>
+
+              {/* Seletor de Apartamento */}
+              <div>
+                <p className="text-[10px] uppercase tracking-wider font-bold text-slate-400 mb-2 px-1">
+                  Apartamento ativo
+                </p>
+                <div className="bg-white border border-slate-200 rounded-2xl divide-y divide-slate-100">
+                  {APARTMENTS.map(ap => {
+                    const isActive = currentAp === ap.key;
+                    const url = `${window.location.origin}/?ap=${encodeURIComponent(ap.apParam)}`;
+                    return (
+                      <button
+                        key={ap.key}
+                        onClick={() => { saveSelectedAp(ap.key); setCurrentAp(ap.key); }}
+                        className={`w-full px-4 py-3 flex items-center justify-between text-left transition-colors active:bg-slate-50 ${isActive ? 'bg-orange-50/60' : ''}`}
+                      >
+                        <div className="flex-1 min-w-0">
+                          <p className={`text-sm font-bold ${isActive ? 'text-orange-700' : 'text-slate-600'}`}>
+                            {ap.label}
+                          </p>
+                          <p className="text-[10px] text-slate-400 font-mono truncate mt-0.5">{url}</p>
+                        </div>
+                        {isActive && <CheckCircle2 className="w-4 h-4 text-orange-500 flex-shrink-0 ml-2" />}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
 
               {/* Lista do ap */}
               {inventory.length > 0 && (
@@ -538,7 +577,7 @@ export default function AdminApp({ onLogout }: Props) {
                   )}
 
                   <button
-                    onClick={() => { clearApInventory(); setCheckoutItems([]); setConferirDone(false); setScreen('home'); }}
+                    onClick={() => { clearApInventory(currentAp); setCheckoutItems([]); setConferirDone(false); setScreen('home'); }}
                     className="w-full bg-slate-900 text-white font-black py-3.5 rounded-2xl transition-all active:scale-95 cursor-pointer"
                   >
                     Limpar Ap e Fechar

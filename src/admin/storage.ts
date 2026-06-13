@@ -1,9 +1,28 @@
 import { CatalogProduct, ApInventoryItem } from './types';
 
-const CATALOG_KEY   = 'hm_catalog';
-const INVENTORY_KEY = 'hm_ap_inventory';
+// ── Apartamentos ─────────────────────────────────────────────────────────────
 
-// ── Catálogo de produtos ────────────────────────────────────────────────────
+export const APARTMENTS = [
+  { key: 'hope_202',     label: 'Ed. Hope 202',  apParam: 'Ed. Hope 202'  },
+  { key: 'hope_203',     label: 'Ed. Hope 203',  apParam: 'Ed. Hope 203'  },
+  { key: 'rio_arno_402', label: 'Rio Arno 402',  apParam: 'Rio Arno 402'  },
+] as const;
+
+export type ApKey = typeof APARTMENTS[number]['key'];
+
+const AP_SELECTED_KEY = 'hm_selected_ap';
+
+export const getSelectedAp = (): ApKey => {
+  const s = localStorage.getItem(AP_SELECTED_KEY) as ApKey | null;
+  return s && APARTMENTS.some(a => a.key === s) ? s : 'hope_202';
+};
+
+export const setSelectedAp = (key: ApKey) =>
+  localStorage.setItem(AP_SELECTED_KEY, key);
+
+// ── Catálogo de produtos (compartilhado entre todos os aps) ──────────────────
+
+const CATALOG_KEY = 'hm_catalog';
 
 export const getCatalog = (): CatalogProduct[] => {
   try { return JSON.parse(localStorage.getItem(CATALOG_KEY) || '[]'); }
@@ -27,15 +46,17 @@ export const upsertCatalogProduct = (product: CatalogProduct) => {
 export const deleteCatalogProduct = (barcode: string) =>
   saveCatalog(getCatalog().filter(p => p.barcode !== barcode));
 
-// ── Inventário do ap ────────────────────────────────────────────────────────
+// ── Inventário por ap (cada ap tem sua própria chave) ────────────────────────
 
-export const getApInventory = (): ApInventoryItem[] => {
-  try { return JSON.parse(localStorage.getItem(INVENTORY_KEY) || '[]'); }
+const invKey = (k: ApKey) => `hm_inv_${k}`;
+
+export const getApInventory = (apKey: ApKey): ApInventoryItem[] => {
+  try { return JSON.parse(localStorage.getItem(invKey(apKey)) || '[]'); }
   catch { return []; }
 };
 
-export const saveApInventory = (inventory: ApInventoryItem[]) =>
-  localStorage.setItem(INVENTORY_KEY, JSON.stringify(inventory));
+export const saveApInventory = (apKey: ApKey, inventory: ApInventoryItem[]) =>
+  localStorage.setItem(invKey(apKey), JSON.stringify(inventory));
 
-export const clearApInventory = () =>
-  localStorage.removeItem(INVENTORY_KEY);
+export const clearApInventory = (apKey: ApKey) =>
+  localStorage.removeItem(invKey(apKey));
